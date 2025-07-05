@@ -9,11 +9,19 @@ from utils import (
 )
 
 class TableExtractor:
+    """
+    Contains logic for extraction data from a PDF page and convertion it to a pandas DataFrame 
+    """
+    
     def __init__(self, card_first_digits: str, card_last_digits: str):
         self.card_first_digits = card_first_digits
         self.card_last_digits = card_last_digits
 
     def extract_table_data(self, page: pdfplumber.pdf.Page) -> pd.DataFrame:
+        """
+        Extract a table with credit card statements from a PDF page
+        """
+
         words: list[dict[str, any]] = page.extract_words()
         first_word_index = get_first_table_word_index(words, self.card_first_digits, self.card_last_digits)
         last_word_index = get_last_table_word_index(words, self.card_first_digits)
