@@ -2,6 +2,7 @@ import pandas as pd
 import pdfplumber
 from table_extractor import TableExtractor
 
+
 class PDFProcessor:
     """
     Responsible for processing a whole PDF file for getting statements data from one or more pages
@@ -14,9 +15,9 @@ class PDFProcessor:
         """
         Process the PDF file and extract statements data.
         """
-        
+
         frames: list[pd.DataFrame] = []
-        from_page: int = 1 # statements data usually starts from page 2 (index 1)
+        from_page: int = 1  # statements data usually starts from page 2 (index 1)
         with pdfplumber.open(pdf_path) as pdf:
             for page in pdf.pages[from_page:]:
                 df = self.extractor.extract_table_data(page)

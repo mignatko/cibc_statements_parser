@@ -8,11 +8,12 @@ from utils import (
     get_column_positions,
 )
 
+
 class TableExtractor:
     """
-    Contains logic for extraction data from a PDF page and convertion it to a pandas DataFrame 
+    Contains logic for extraction data from a PDF page and convertion it to a pandas DataFrame
     """
-    
+
     def __init__(self, card_first_digits: str, card_last_digits: str):
         self.card_first_digits = card_first_digits
         self.card_last_digits = card_last_digits
@@ -23,7 +24,9 @@ class TableExtractor:
         """
 
         words: list[dict[str, any]] = page.extract_words()
-        first_word_index = get_first_table_word_index(words, self.card_first_digits, self.card_last_digits)
+        first_word_index = get_first_table_word_index(
+            words, self.card_first_digits, self.card_last_digits
+        )
         last_word_index = get_last_table_word_index(words, self.card_first_digits)
 
         if first_word_index < 0 or last_word_index < 0:
@@ -31,7 +34,7 @@ class TableExtractor:
 
         table_coords = get_table_dimentions(first_word_index, last_word_index, words)
         column_positions = get_column_positions(table_coords, words)
-        
+
         # TODO: move to a private method
         rows = defaultdict(lambda: defaultdict(str))
         current_row = int(words[0]["top"])
@@ -45,7 +48,7 @@ class TableExtractor:
                         rows[current_row][key] += f"{words[i]['text']} "
                 else:
                     if words[i]["x0"] > column_positions["transaction_date"][1]:
-                         # TODO: refactor (currently without skipping other columns we'll duplicate the same word and past to description len(columns_positions - 1) times)
+                        # TODO: refactor (currently without skipping other columns we'll duplicate the same word and past to description len(columns_positions - 1) times)
                         if key != "description":
                             continue
                         rows[current_row]["description"] += f"{words[i]['text']} "
@@ -53,5 +56,5 @@ class TableExtractor:
                         current_row = int(words[i]["top"])
                         rows[current_row]["transaction_date"] += f"{words[i]['text']} "
 
-        df = pd.DataFrame.from_dict(rows, orient='index')
+        df = pd.DataFrame.from_dict(rows, orient="index")
         return df
