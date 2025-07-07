@@ -24,5 +24,4 @@ class PDFProcessor:
 
         full_df = pd.concat(frames, ignore_index=True)
 
-        print(full_df)
         return full_df

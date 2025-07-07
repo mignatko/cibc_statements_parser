@@ -31,7 +31,8 @@ class TableExtractor:
 
         table_coords = get_table_dimentions(first_word_index, last_word_index, words)
         column_positions = get_column_positions(table_coords, words)
-
+        
+        # TODO: move to a private method
         rows = defaultdict(lambda: defaultdict(str))
         current_row = int(words[0]["top"])
         for i in range(first_word_index, last_word_index + 1):
@@ -44,6 +45,9 @@ class TableExtractor:
                         rows[current_row][key] += f"{words[i]['text']} "
                 else:
                     if words[i]["x0"] > column_positions["transaction_date"][1]:
+                         # TODO: refactor (currently without skipping other columns we'll duplicate the same word and past to description len(columns_positions - 1) times)
+                        if key != "description":
+                            continue
                         rows[current_row]["description"] += f"{words[i]['text']} "
                     else:
                         current_row = int(words[i]["top"])
