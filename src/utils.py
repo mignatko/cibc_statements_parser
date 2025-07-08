@@ -58,7 +58,11 @@ def get_first_table_word_index(
         "XXXX",
         card_last_four_numbers,
     )
-    return find_word_adjacent_to_the_sequence((top_sequence,), words)
+    return find_word_adjacent_to_the_sequence(
+        (top_sequence,),
+        words,
+        adjacent_left=False,
+    )
 
 
 def get_last_table_word_index(
