@@ -1,3 +1,23 @@
 [tool.black]
 line-length = 88
 target-version = ["py39"]
+
+[tool.ruff]
+line-length = 88
+exclude = ["tests/fixtures"]
+# enable all flake8 rules plus isort-style imports
+lint.select = ["ALL"]
+lint.ignore = [
+  "D203",   # conflicting docstring spacer rule
+  "D212",   # confilicting docstring rule - keep D213 (multi-line-summary-second-line)
+  "D413",   # Missing blank line after last section ("Returns")
+  "TD003",  # Missing issue link for this TODO
+
+  # Temporary
+  "D",      # All docstring issues are ignored till the package is not ready for use
+  "ERA001", # Found commented-out code
+  "FIX002", # Line contains TODO, consider resolving the issue
+]
+
+[tool.ruffl.lint.per-file-ignores]
+"tests/*" = ["S101"]  # ignore assert-statement warnings in tests

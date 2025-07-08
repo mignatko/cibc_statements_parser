@@ -1,10 +1,28 @@
+"""
+Utility helpers for PDF parsing.
+
+Contains small, reusable functions used across the project.
+"""
+
+from typing import Any
+
+
 def get_table_dimentions(
-    first_word_index: int, last_word_index: int, words: list[dict[str, any]]
+    first_word_index: int,
+    last_word_index: int,
+    words: list[dict[str, Any]],
 ) -> tuple[float, float, float, float]:
     """
-    Get the dimensions of the table in the PDF page based on first and last table words coordinates
-    """
+    Return the (top, left, bottom, right) bounds of a table.
 
+    Args:
+        first_word_index: Index of the first word belonging to the table.
+        last_word_index: Index of the last word belonging to the table.
+        words: Sequence returned by ``pdfplumber.Page.extract_words()``.
+
+    Returns:
+        A 4-tuple ``(top, left, bottom, right)`` in PDF point units.
+    """
     left: float = words[first_word_index]["x0"]
     right: float = (
         words[last_word_index]["x1"] + 5
@@ -16,45 +34,80 @@ def get_table_dimentions(
 
 
 def get_first_table_word_index(
-    words: list[dict[str, any]], cardFirstFourNumbers: str, cardLastFourNumbers: str
+    words: list[dict[str, Any]],
+    card_first_four_numbers: str,
+    card_last_four_numbers: str,
 ) -> int:
     """
-    Get the index of the first word in the table.
-    """
+    Return the index of the first word of the statement table.
 
+    Args:
+        words: Sequence returned by ``pdfplumber.Page.extract_words()``.
+        card_first_four_numbers: First four digits of the card number.
+        card_last_four_numbers: Last four digits of the card number.
+
+    Returns:
+        Zero-based index of the first word in the table, or ``-1`` if
+        not found.
+    """
     top_sequence = (
         "Card",
         "number",
-        cardFirstFourNumbers,
+        card_first_four_numbers,
         "XXXX",
         "XXXX",
-        cardLastFourNumbers,
+        card_last_four_numbers,
     )
     return find_word_adjacent_to_the_sequence((top_sequence,), words)
 
 
-def get_last_table_word_index(words: list[dict[str, any]], cardFirstFourNumbers: str):
+def get_last_table_word_index(
+    words: list[dict[str, Any]],
+    card_first_four_numbers: str,
+) -> int:
     """
-    Get the index of the last word in the table.
-    """
+    Return the index of the last word in the statement table.
 
+    Args:
+        words: Sequence returned by ``pdfplumber.Page.extract_words()``.
+        card_first_four_numbers: First four digits of the card number.
+
+    Returns:
+        Zero-based index of the last word in the table, or ``-1`` if
+        not found.
+    """
     bottom_sequence_1 = ("Page", "_", "of")
-    bottom_sequence_2 = ("Total", "for", cardFirstFourNumbers)
+    bottom_sequence_2 = ("Total", "for", card_first_four_numbers)
     return find_word_adjacent_to_the_sequence(
-        (bottom_sequence_1, bottom_sequence_2), words, adjacent_left=True
+        (bottom_sequence_1, bottom_sequence_2),
+        words,
+        adjacent_left=True,
     )
 
 
 def find_word_adjacent_to_the_sequence(
     sequences: tuple[tuple[str, ...], ...],
-    words: list[dict[str, any]],
-    adjacent_left: bool = False,
+    words: list[dict[str, Any]],
+    *,
+    adjacent_left: bool,
 ) -> int:
-    """
-    Find the index of the word that is adjacent to a specific sequence of words.
-    Note. Symbool "_" indicates that the word is not important and can be skipped.
-    """
+    r"""
+    Return index of the word adjacent to a matching word sequence.
 
+    The function scans ``words`` for any of the provided ``sequences``.
+    The underscore ``\"_\"`` acts as a wildcard that matches any word
+    and is ignored during comparison.
+
+    Args:
+        sequences: Tuple of sequences to match, e.g.
+            ``(("Total", "_", "CAD"),)``.
+        words: Sequence returned by ``pdfplumber.Page.extract_words()``.
+        adjacent_left: If ``True`` return word immediately **left** of
+            the sequence; otherwise return word immediately **right**.
+
+    Returns:
+        Index of the adjacent word, or ``-1`` if no sequence matches.
+    """
     index = -1
     for sequence in sequences:
         pointer = 0
@@ -75,20 +128,36 @@ def find_word_adjacent_to_the_sequence(
 
 
 def get_column_positions(
-    table_coords: tuple[float, float, float, float], words: list[dict[str, any]]
+    table_coords: tuple[float, float, float, float],
+    words: list[dict[str, Any]],
 ) -> dict[str, tuple[float, float]]:
     """
-    Get the positions of the table headers in range of words based on hardcoded sequence of words.
-    This function should return a dictionary with header names as keys and their positions as values.
-    """
+    Return positions of table headers.
 
-    top_sequence = ("date", "date", "Description", "Spend", "Categories", "Amount($)")
+    Args:
+        table_coords: (top, left, bottom, right) of the table rectangle.
+        words: List of pdfplumber ``extract_words`` dicts.
+
+    Returns:
+        Mapping header → (x0, x1) positions.
+    """
+    top_sequence = (
+        "date",
+        "date",
+        "Description",
+        "Spend",
+        "Categories",
+        "Amount($)",
+    )
     index = find_word_adjacent_to_the_sequence(
-        (top_sequence,), words, adjacent_left=True
+        (top_sequence,),
+        words,
+        adjacent_left=True,
     )
 
     if index < 0:
-        raise ValueError("Table headers were not found.")
+        msg = "Table headers were not found."
+        raise ValueError(msg)
 
     post_date_start: float = words[index + 2]["x0"] - 10
     description_start: float = words[index + 3]["x0"] - 10
