@@ -6,6 +6,8 @@ Contains small, reusable functions used across the project.
 
 from typing import Any
 
+from table_headers import Col
+
 
 def get_table_dimentions(
     first_word_index: int,
@@ -169,9 +171,9 @@ def get_column_positions(
     amount_start: float = words[index + 6]["x0"] - 10
 
     return {
-        "transaction_date": (table_coords[1], post_date_start),
-        "post_date": (post_date_start, description_start),
-        "description": (description_start, category_start),
-        "category": (category_start, amount_start),
-        "amount": (amount_start, table_coords[3]),
+        Col.TRANS_DATE.value: (table_coords[1], post_date_start),
+        Col.POST_DATE.value: (post_date_start, description_start),
+        Col.DESCRIPTION.value: (description_start, category_start),
+        Col.CATEGORY.value: (category_start, amount_start),
+        Col.AMOUNT.value: (amount_start, table_coords[3]),
     }

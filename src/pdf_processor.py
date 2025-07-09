@@ -9,6 +9,7 @@ import pandas as pd
 import pdfplumber
 
 from table_extractor import TableExtractor
+from table_headers import Col
 
 
 class PDFProcessor:
@@ -40,9 +41,27 @@ class PDFProcessor:
         """
         frames: list[pd.DataFrame] = []
         from_page: int = 1  # statements data usually starts from page 2 (index 1)
+
         with pdfplumber.open(pdf_path) as pdf:
+            # TODO @mignatko: get default year from command line args
+            year = 2000  # default year
+            matches = pdf.pages[0].search(r"Statement\s+Date\s*([\s\S]+?)\n")
+            if len(matches) > 0:
+                statement_date = matches[0]["groups"][0]
+                year = statement_date[-4:]
+
             for page in pdf.pages[from_page:]:
                 df = self.extractor.extract_table_data(page)
+                if df.size > 0:
+                    df[Col.TRANS_DATE.value] = pd.to_datetime(
+                        (df[Col.TRANS_DATE.value] + year),
+                        format="%b %d %Y",
+                    )
+                    df[Col.POST_DATE.value] = pd.to_datetime(
+                        (df[Col.POST_DATE.value] + year),
+                        format="%b %d %Y",
+                    )
+
                 frames.append(df)
 
         return pd.concat(frames, ignore_index=True)

@@ -6,6 +6,7 @@ from typing import Any
 import pandas as pd
 from pdfplumber.page import Page
 
+from table_headers import Col
 from utils import (
     get_column_positions,
     get_first_table_word_index,
@@ -66,15 +67,15 @@ class TableExtractor:
                 if abs(int(words[i]["top"]) - current_row) <= 1:
                     if words[i]["x0"] > start and words[i]["x1"] <= end:
                         rows[current_row][key] += f"{words[i]['text']} "
-                elif words[i]["x0"] > column_positions["transaction_date"][1]:
+                elif words[i]["x0"] > column_positions[Col.TRANS_DATE.value][1]:
                     # TODO @mignatko: refactor:
                     # without skipping other columns we'll duplicate the same word
                     # and past to description len(columns_positions - 1) times
-                    if key != "description":
+                    if key != Col.DESCRIPTION.value:
                         continue
-                    rows[current_row]["description"] += f"{words[i]['text']} "
+                    rows[current_row][Col.DESCRIPTION.value] += f"{words[i]['text']} "
                 else:
                     current_row = int(words[i]["top"])
-                    rows[current_row]["transaction_date"] += f"{words[i]['text']} "
+                    rows[current_row][Col.TRANS_DATE.value] += f"{words[i]['text']} "
 
         return pd.DataFrame.from_dict(rows, orient="index")
