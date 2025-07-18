@@ -172,9 +172,9 @@ def get_column_positions(
     amount_end: float = words[index + 6]["x1"]
 
     return {
-        Col.TRANS_DATE.value: (table_coords[1], post_date_start),
-        Col.POST_DATE.value: (post_date_start, description_start),
-        Col.DESCRIPTION.value: (description_start, category_start),
-        Col.CATEGORY.value: (category_start, amount_start),
-        Col.AMOUNT.value: (amount_start, max(table_coords[3], amount_end)),
+        Col.TRANS_DATE: (table_coords[1], post_date_start),
+        Col.POST_DATE: (post_date_start, description_start),
+        Col.DESCRIPTION: (description_start, category_start),
+        Col.CATEGORY: (category_start, amount_start),
+        Col.AMOUNT: (amount_start, max(table_coords[3], amount_end)),
     }

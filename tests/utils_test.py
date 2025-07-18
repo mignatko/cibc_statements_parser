@@ -68,10 +68,10 @@ def test_get_column_positions(sample_words: list[dict[str, Any]]) -> None:
     positions = get_column_positions(dims, sample_words)
     assert isinstance(positions, dict)
     for col in [
-        Col.TRANS_DATE.value,
-        Col.POST_DATE.value,
-        Col.DESCRIPTION.value,
-        Col.CATEGORY.value,
-        Col.AMOUNT.value,
+        Col.TRANS_DATE,
+        Col.POST_DATE,
+        Col.DESCRIPTION,
+        Col.CATEGORY,
+        Col.AMOUNT,
     ]:
         assert col in positions
