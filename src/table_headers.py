@@ -1,5 +1,5 @@
 from enum import Enum, unique
-from typing import Literal, TypeAlias
+from typing import Literal
 
 
 @unique
@@ -11,7 +11,7 @@ class Col(str, Enum):
     AMOUNT = "amount"
 
 
-ColName: TypeAlias = Literal[
+type ColName = Literal[
     Col.TRANS_DATE,
     Col.POST_DATE,
     Col.DESCRIPTION,

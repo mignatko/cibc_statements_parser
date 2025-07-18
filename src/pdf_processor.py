@@ -44,21 +44,22 @@ class PDFProcessor:
 
         with pdfplumber.open(pdf_path) as pdf:
             # TODO @mignatko: get default year from command line args
-            year = 2000  # default year
-            matches = pdf.pages[0].search(r"Statement\s+Date\s*([\s\S]+?)\n")
-            if len(matches) > 0:
-                statement_date = matches[0]["groups"][0]
-                year = statement_date[-4:]
+            year = "2000"  # default year
+            if pdf.pages[0] is not None:
+                matches = pdf.pages[0].search(r"Statement\s+Date\s*([\s\S]+?)\n")
+                if len(matches) > 0:
+                    statement_date: str = matches[0]["groups"][0]
+                    year = statement_date[-4:]
 
             for page in pdf.pages[from_page:]:
                 df = self.extractor.extract_table_data(page)
                 if df.size > 0:
                     df[Col.TRANS_DATE.value] = pd.to_datetime(
-                        (df[Col.TRANS_DATE.value] + year),
+                        (df[Col.TRANS_DATE.value] + " " + year),
                         format="%b %d %Y",
                     )
                     df[Col.POST_DATE.value] = pd.to_datetime(
-                        (df[Col.POST_DATE.value] + year),
+                        (df[Col.POST_DATE.value] + " " + year),
                         format="%b %d %Y",
                     )
 

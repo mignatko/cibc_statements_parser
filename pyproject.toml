@@ -1,3 +1,8 @@
+[project]
+name = "cibc-statements-parser"
+version = "0.0.1"
+requires-python = ">=3.13"
+
 [tool.black]
 line-length = 88
 target-version = ["py313"]
@@ -19,5 +24,26 @@ lint.ignore = [
   "FIX002", # Line contains TODO, consider resolving the issue
 ]
 
-[tool.ruffl.lint.per-file-ignores]
-"tests/*" = ["S101"]  # ignore assert-statement warnings in tests
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+addopts = """
+    --strict-markers
+    --strict-config
+    -ra
+    --tb=short
+    -q
+"""
+
+# Directories to search for tests. Dot means "top-level project path".
+testpaths = [
+    "tests",
+]
+
+# Pattern to identify test files
+python_files = [
+    "test_*.py",
+    "*_test.py",
+]
