@@ -5,11 +5,14 @@ This script processes PDF statement file
 with one or multiple statement tables and combines the results.
 """
 
+import numpy as np
 import pandas as pd
 import pdfplumber
 
 from table_extractor import TableExtractor
 from table_headers import Col
+
+UNKNOWN = "UNKNOWN"
 
 
 class PDFProcessor:
@@ -74,7 +77,7 @@ class PDFProcessor:
 
         return year
 
-    def process_dataframe(self, df: pd.DataFrame, year: int) -> pd.DataFrame:
+    def process_dataframe(self, df: pd.DataFrame, year: str) -> pd.DataFrame:
         """
         Process a DataFrame containing statement data.
 
@@ -87,6 +90,8 @@ class PDFProcessor:
         if df.empty:
             return df
 
+        df[Col.AMOUNT] = pd.to_numeric(df[Col.AMOUNT], errors="coerce")
+
         df[Col.TRANS_DATE] = pd.to_datetime(
             (df[Col.TRANS_DATE] + " " + year),
             format="%b %d %Y",
@@ -95,6 +100,9 @@ class PDFProcessor:
             (df[Col.POST_DATE] + " " + year),
             format="%b %d %Y",
         )
+
+        for col in [Col.DESCRIPTION, Col.CATEGORY]:
+            df[col] = df[col].astype(str).str.strip()
 
         return self.process_dataframe_description(df)
 
@@ -111,14 +119,8 @@ class PDFProcessor:
         if df.empty:
             return df
 
-        # Parse Store name from Description column
-        # based on the first word or all before #,* or all before digits
-        df[Col.STORE_NAME] = (
-            df[Col.DESCRIPTION].str.strip().str.extract(r"^([^\d#,*,/]+)")
-        )
-
         # Parse Province Description last word matches to any of Canada provinces
-        provinces = [
+        provinces: set[str] = {
             "AB",
             "BC",
             "MB",
@@ -132,23 +134,66 @@ class PDFProcessor:
             "QC",
             "SK",
             "YT",
-        ]
-        df[Col.PROVINCE] = df[Col.DESCRIPTION].str.extract(
-            r"(\b(?:{})\b)".format("|".join(provinces)),
-        )
+        }
 
-        # Remove leading and trailing whitespace from Description
-        mask = (
-            df[Col.PROVINCE].notna()
-            & ~df[Col.DESCRIPTION].str.contains("@", na=False)
-            & df[Col.DESCRIPTION]
-            > 0.0
+        return (
+            df.assign(
+                province=lambda d: np.select(
+                    [
+                        d[Col.DESCRIPTION].str.contains("@", na=False),
+                        d[Col.AMOUNT] < 0,
+                        d[Col.DESCRIPTION].str.contains("Prime Member", na=False),
+                    ],
+                    [
+                        UNKNOWN,
+                        UNKNOWN,
+                        UNKNOWN,
+                    ],
+                    default=d[Col.DESCRIPTION]
+                    .str.strip()
+                    .str[-2:]
+                    .where(lambda s: s.isin(provinces)),
+                ),
+            )
+            .assign(
+                city=lambda d: np.select(
+                    [
+                        ~d[Col.DESCRIPTION]
+                        .str.split(" ")
+                        .str[-2]
+                        .str.fullmatch(r"[A-Za-z]+", na=False),
+                        d[Col.PROVINCE] != UNKNOWN,
+                        (d[Col.DESCRIPTION].str.strip().str[-3] != " ")
+                        & (d[Col.PROVINCE] != UNKNOWN),
+                    ],
+                    [
+                        UNKNOWN,
+                        d[Col.DESCRIPTION].str.split(" ").str[-2],
+                        UNKNOWN,
+                    ],
+                    default=UNKNOWN,
+                ),
+            )
+            .assign(
+                store_name=lambda d: np.select(
+                    [
+                        d[Col.DESCRIPTION].str.contains("@", na=False),
+                        ~d[Col.DESCRIPTION].str.contains("@", na=False),
+                        d[Col.AMOUNT] < 0.0,
+                    ],
+                    [
+                        # TODO @mignatko: add proper handling for next 2 choices
+                        d[Col.DESCRIPTION]
+                        .str.strip()
+                        .str.extract(r"^([^\d#,*,/]+)", expand=False)
+                        .str.strip(),
+                        d[Col.DESCRIPTION]
+                        .str.strip()
+                        .str.extract(r"^([^\d#,*,/]+)", expand=False)
+                        .str.strip(),
+                        UNKNOWN,
+                    ],
+                    default=UNKNOWN,
+                ),
+            )
         )
-
-        df.loc[mask, Col.CITY] = (
-            df.loc[mask, Col.DESCRIPTION]
-            .str.split(" ")
-            .str[-3]  # take the 3rd word from the end
-        )
-
-        return df
