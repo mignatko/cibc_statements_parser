@@ -1,0 +1,13 @@
+# === Core runtime dependencies ===========================================
+pandas>=2.2          # DataFrame manipulation & CSV export
+numpy>=1.26          # fast vectorised operations used by the processor
+pdfplumber>=0.11     # lightweight PDF text extraction
+rich>=13.7           # colourful CLI error / status messages
+
+# ------------------------------------------------------------------------
+# The following are pulled in automatically by the above packages:
+#   * python-dateutil, pytz, tzdata  (via pandas)
+#   * Pillow                         (via pdfplumber)
+# so there is no need to list them explicitly.
+#
+# Tested on Python 3.10 – 3.13.
