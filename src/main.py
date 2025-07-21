@@ -26,4 +26,4 @@ if __name__ == "__main__":
         year if year is not None else args.default_year,
     )
 
-    # TODO @mignatko: import to csv
+    data.to_csv(args.out_csv)
