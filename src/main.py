@@ -6,37 +6,24 @@ This script processes one or more PDF statement files and combines the results.
 
 import pandas as pd
 
+from cli_args_parser import CLIArgs
 from pdf_processor import PDFProcessor
 
 if __name__ == "__main__":
-    processor = PDFProcessor(
-        "<your_credit_card_first_4_digits>",
-        "<your_credit_card_last_4_digits>",
-    )
-    pdfs = [
-        "data/<name_if_statement_document_1>.pdf",
-        "data/<name_if_statement_document_2>.pdf",
-    ]
+    args = CLIArgs.from_argv()
 
-    parsed_docs: list[pd.DataFrame] = [processor.process_pdf(x) for x in pdfs]
+    processor = PDFProcessor(
+        args.card_first_digits,
+        args.card_last_digits,
+    )
+
+    parsed_docs: list[pd.DataFrame] = [processor.process_pdf(x) for x in args.docs]
 
     data = pd.concat(parsed_docs, ignore_index=True)
-    year = processor.get_year_from_first_page(pdfs[0])
-    data = processor.process_dataframe(data, year)
+    year = processor.get_year_from_first_page(args.docs[0])
+    data = processor.process_dataframe(
+        data,
+        year if year is not None else args.default_year,
+    )
 
-    # for debuging purposes only
-    # pd.set_option("display.max_rows", None)
-    # print(
-    #     data[
-    #         [
-    #             Col.DESCRIPTION,
-    #             Col.CATEGORY,
-    #             Col.AMOUNT,
-    #             Col.CITY,
-    #             Col.PROVINCE,
-    #             Col.STORE_NAME,
-    #         ]
-    #     ]
-    # )
-    # mask = data[Col.PROVINCE].isna()
-    # print(data.loc[mask, [Col.DESCRIPTION, Col.CITY, Col.STORE_NAME]])
+    # TODO @mignatko: import to csv
