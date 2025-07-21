@@ -1,3 +1,9 @@
+"""
+Table header definitions and enums for the CIBC Statements Parser.
+
+Defines column names and types for statement table parsing and DataFrame construction.
+"""
+
 from enum import Enum, unique
 from typing import Literal
 

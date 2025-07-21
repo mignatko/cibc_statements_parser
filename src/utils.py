@@ -6,7 +6,7 @@ Contains small, reusable functions used across the project.
 
 from typing import Any
 
-from table_headers import Col
+from constants.table_headers import Col
 
 
 def get_table_dimentions(

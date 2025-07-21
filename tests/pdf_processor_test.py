@@ -1,22 +1,24 @@
 """Unit tests for pdf_processor.py."""
 
+import re
 from types import TracebackType
 from typing import Self
 
 import pandas as pd
 import pytest
 
-from src.pdf_processor import UNKNOWN, PDFProcessor
-from src.table_headers import Col
+from src.constants.keywords import UNKNOWN
+from src.constants.table_headers import Col
+from src.pdf_processor import PDFProcessor
 
 
 class DummyPage:
     def extract_words(self) -> list:
         return []
 
-    def search(self, pattern: str) -> list[dict[str, list[str]]]:
+    def search(self, regexp: re.Pattern) -> list[dict[str, list[str]]]:
         # Simulate a match for "Statement Date"
-        if "Statement" in pattern:
+        if "Statement" in regexp.pattern:
             return [{"groups": ["Jan 15, 2024"]}]
         return []
 

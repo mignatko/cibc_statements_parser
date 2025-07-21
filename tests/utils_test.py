@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from src.table_headers import Col
+from src.constants.table_headers import Col
 from src.utils import (
     find_word_adjacent_to_the_sequence,
     get_column_positions,

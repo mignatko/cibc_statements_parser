@@ -9,10 +9,11 @@ import numpy as np
 import pandas as pd
 import pdfplumber
 
+from constants.keywords import UNKNOWN
+from constants.provinces import PROVINCES
+from constants.regexps import ASCII_WORD_RE, STATEMENT_DATE_RE, STORE_NAME_RE
+from constants.table_headers import Col
 from table_extractor import TableExtractor
-from table_headers import Col
-
-UNKNOWN = "UNKNOWN"
 
 
 class PDFProcessor:
@@ -70,7 +71,7 @@ class PDFProcessor:
                 return year
 
             if pdf.pages[0] is not None:
-                matches = pdf.pages[0].search(r"Statement\s+Date\s*([\s\S]+?)\n")
+                matches = pdf.pages[0].search(STATEMENT_DATE_RE)
                 if len(matches) > 0:
                     statement_date: str = matches[0]["groups"][0]
                     year = statement_date[-4:]
@@ -79,121 +80,100 @@ class PDFProcessor:
 
     def process_dataframe(self, df: pd.DataFrame, year: str) -> pd.DataFrame:
         """
-        Process a DataFrame containing statement data.
+        Clean amounts, parse dates, and delegate to the “description” enricher.
 
-        Args:
-            df (pd.DataFrame): DataFrame to process.
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Raw statement rows.
+        year : str
+            Calendar year that belongs to every *string* date in `df`.
 
-        Returns:
-            pd.DataFrame: Processed DataFrame with date columns converted.
+        Returns
+        -------
+        pd.DataFrame
+            Frame ready for further processing.
         """
         if df.empty:
             return df
 
         df[Col.AMOUNT] = pd.to_numeric(df[Col.AMOUNT], errors="coerce")
 
-        df[Col.TRANS_DATE] = pd.to_datetime(
-            (df[Col.TRANS_DATE] + " " + year),
-            format="%b %d %Y",
-        )
-        df[Col.POST_DATE] = pd.to_datetime(
-            (df[Col.POST_DATE] + " " + year),
-            format="%b %d %Y",
-        )
+        _parse_dates(df, Col.TRANS_DATE, year)
+        _parse_dates(df, Col.POST_DATE, year)
 
-        for col in [Col.DESCRIPTION, Col.CATEGORY]:
-            df[col] = df[col].astype(str).str.strip()
+        _clean_text(df, [Col.DESCRIPTION, Col.CATEGORY])
 
         return self.process_dataframe_description(df)
 
     def process_dataframe_description(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Process the Description column in the DataFrame.
+        Add **province**, **city**, and **store_name** columns.
 
-        Args:
-            df (pd.DataFrame): DataFrame to process.
-
-        Returns:
-            pd.DataFrame: DataFrame with processed Description column.
+        The rules are the same as in the original implementation but executed
+        in a single vectorised step for readability and speed.
         """
         if df.empty:
             return df
 
-        # Parse Province Description last word matches to any of Canada provinces
-        provinces: set[str] = {
-            "AB",
-            "BC",
-            "MB",
-            "NB",
-            "NL",
-            "NS",
-            "NT",
-            "NU",
-            "ON",
-            "PE",
-            "QC",
-            "SK",
-            "YT",
-        }
+        descr = df[Col.DESCRIPTION].astype(str).str.strip()
 
-        return (
-            df.assign(
-                province=lambda d: np.select(
-                    [
-                        d[Col.DESCRIPTION].str.contains("@", na=False),
-                        d[Col.AMOUNT] < 0,
-                        d[Col.DESCRIPTION].str.contains("Prime Member", na=False),
-                    ],
-                    [
-                        UNKNOWN,
-                        UNKNOWN,
-                        UNKNOWN,
-                    ],
-                    default=d[Col.DESCRIPTION]
-                    .str.strip()
-                    .str[-2:]
-                    .where(lambda s: s.isin(provinces)),
-                ),
-            )
-            .assign(
-                city=lambda d: np.select(
-                    [
-                        ~d[Col.DESCRIPTION]
-                        .str.split(" ")
-                        .str[-2]
-                        .str.fullmatch(r"[A-Za-z]+", na=False),
-                        d[Col.PROVINCE] != UNKNOWN,
-                        (d[Col.DESCRIPTION].str.strip().str[-3] != " ")
-                        & (d[Col.PROVINCE] != UNKNOWN),
-                    ],
-                    [
-                        UNKNOWN,
-                        d[Col.DESCRIPTION].str.split(" ").str[-2],
-                        UNKNOWN,
-                    ],
-                    default=UNKNOWN,
-                ),
-            )
-            .assign(
-                store_name=lambda d: np.select(
-                    [
-                        d[Col.DESCRIPTION].str.contains("@", na=False),
-                        ~d[Col.DESCRIPTION].str.contains("@", na=False),
-                        d[Col.AMOUNT] < 0.0,
-                    ],
-                    [
-                        # TODO @mignatko: add proper handling for next 2 choices
-                        d[Col.DESCRIPTION]
-                        .str.strip()
-                        .str.extract(r"^([^\d#,*,/]+)", expand=False)
-                        .str.strip(),
-                        d[Col.DESCRIPTION]
-                        .str.strip()
-                        .str.extract(r"^([^\d#,*,/]+)", expand=False)
-                        .str.strip(),
-                        UNKNOWN,
-                    ],
-                    default=UNKNOWN,
-                ),
-            )
+        has_at = descr.str.contains("@", na=False)
+        is_refund = df[Col.AMOUNT] < 0.0
+        is_prime = descr.str.contains("Prime Member", na=False)
+
+        prov_extracted = descr.str[-2:]
+        province = np.where(
+            has_at | is_refund | is_prime,
+            UNKNOWN,
+            np.where(prov_extracted.isin(PROVINCES), prov_extracted, UNKNOWN),
         )
+
+        second_last_token = descr.str.split().str[-2]
+        token_is_word = second_last_token.str.match(ASCII_WORD_RE, na=False)
+
+        city = np.where(
+            province != UNKNOWN,
+            np.where(token_is_word, second_last_token, UNKNOWN),
+            UNKNOWN,
+        )
+
+        store_name_base = descr.str.extract(STORE_NAME_RE, expand=False).str.strip()
+        store_name = np.select(
+            [has_at, is_refund],
+            [store_name_base, UNKNOWN],
+            default=store_name_base,
+        )
+
+        df[[Col.PROVINCE, Col.CITY, Col.STORE_NAME]] = pd.DataFrame(
+            {
+                Col.PROVINCE: province,
+                Col.CITY: city,
+                Col.STORE_NAME: store_name,
+            },
+            index=df.index,
+        )
+
+        return df
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _parse_dates(df: pd.DataFrame, col: str, year_str: str) -> None:
+    """
+    In-place: `"Jan 1"` + `" 2024"`  →  `pd.Timestamp("2024-01-01")`
+    """
+    df[col] = pd.to_datetime(
+        df[col] + " " + year_str,
+        format="%b %d %Y",
+        errors="coerce",
+    )
+
+
+def _clean_text(df: pd.DataFrame, columns: list[str]) -> None:
+    """Strip leading/trailing whitespace from every column in *columns*."""
+    for col in columns:
+        df[col] = df[col].astype(str).str.strip()

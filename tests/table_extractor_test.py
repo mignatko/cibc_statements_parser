@@ -4,8 +4,8 @@ from typing import Any
 
 import pandas as pd
 
+from src.constants.table_headers import Col
 from src.table_extractor import TableExtractor
-from src.table_headers import Col
 
 
 class DummyPage:

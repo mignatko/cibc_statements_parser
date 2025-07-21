@@ -6,7 +6,7 @@ from typing import Any
 import pandas as pd
 from pdfplumber.page import Page
 
-from table_headers import Col
+from constants.table_headers import Col
 from utils import (
     get_column_positions,
     get_first_table_word_index,
